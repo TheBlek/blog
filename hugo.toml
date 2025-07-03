@@ -1,4 +1,4 @@
-baseURL = 'localhost:1313'
+baseURL = 'theblek.online'
 languageCode = 'en-us'
 title = 'theblek'
 theme = 'hugo-theme-m10c'
