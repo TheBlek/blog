@@ -1,4 +1,18 @@
 baseURL = 'localhost:1313'
 languageCode = 'en-us'
 title = 'theblek'
-theme = 'ananke'
+theme = 'hugo-theme-m10c'
+
+[params]
+	author = 'Kuklin Georgiy'
+	description = 'Software engineer interested in the nitty-gritty of computing'
+	avatar = 'myavatar.jpg'
+	[[params.social]]
+		icon = "brand-github"
+		name = "Github"
+		url = "https://github.com/TheBlek"
+	[[params.social]]
+		icon = "brand-telegram"
+		name = "Telegram"
+		url = "https://t.me/theblek_games"
+	
