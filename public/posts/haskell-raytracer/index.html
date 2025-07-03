@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en-us">
   <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
-    <title>Parallelizing Haskel Raytracer // theblek</title>
+    <title>Parallelizing Haskell Raytracer // theblek</title>
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta charset="utf-8" />
     <meta name="generator" content="Hugo 0.136.5">
@@ -14,13 +14,13 @@
     
     
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Parallelizing Haskel Raytracer">
+  <meta name="twitter:title" content="Parallelizing Haskell Raytracer">
   <meta name="twitter:description" content="This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be substantially expanded upon, although I might add new measurements later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
 Introduction So we made a raytracer in haskell using Raytracing In One Weekend as our guide. As you may know, haskell’s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.">
 
     <meta property="og:url" content="//localhost:1313/posts/haskell-raytracer/">
   <meta property="og:site_name" content="theblek">
-  <meta property="og:title" content="Parallelizing Haskel Raytracer">
+  <meta property="og:title" content="Parallelizing Haskell Raytracer">
   <meta property="og:description" content="This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be substantially expanded upon, although I might add new measurements later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
 Introduction So we made a raytracer in haskell using Raytracing In One Weekend as our guide. As you may know, haskell’s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.">
   <meta property="og:locale" content="en_us">
@@ -52,7 +52,7 @@ Introduction So we made a raytracer in haskell using Raytracing In One Weekend a
       
   <article class="post">
     <header class="post-header">
-      <h1 class ="post-title">Parallelizing Haskel Raytracer</h1>
+      <h1 class ="post-title">Parallelizing Haskell Raytracer</h1>
       <div class="post-meta">
         <div>
           <svg class="icon icon-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>calendar</title><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -60,7 +60,7 @@ Introduction So we made a raytracer in haskell using Raytracing In One Weekend a
         </div>
         <div>
           <svg class="icon icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>clock</title><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          5 min read
+          8 min read
         </div>
       </div>
     </header>
@@ -164,8 +164,120 @@ Big: 408.93s (Just 1)
 <pre tabindex="0"><code>Small: 8s (~1.41x)
 Medium: 64s (~1.47x)
 Big: 277s (~1.48x)
-</code></pre><p>For a machine with two real cores, the result looks as expected.</p>
+</code></pre><p>For a machine with two real cores, the result looks as expected. Seeing those numbers stired up my interest in optimisations.</p>
 <h1 id="optimisations-go-brrr">Optimisations go brrr</h1>
+<h2 id="still-threads">Still threads</h2>
+<p>On the previous step we divided colors into 4 parts because my working machine had 4 threads, but is it optimal?</p>
+<p>So I decided to check two other divisions: by rows and by columns. With typical screen ratio 16 by 9, that would make more columns than rows.</p>
+<blockquote>
+<p>Note, from here on out I will specify speedup in parethesis relative to previous-best results.</p>
+</blockquote>
+<p>Row split:</p>
+<pre tabindex="0"><code>Small: 7.13s (1.12x)
+Medium: 57.95s (1.10x)
+Big: 260s (1.07x)
+</code></pre><p>Column split:</p>
+<pre tabindex="0"><code>Small: 7.12s (1.12x)
+Medium: 62.8s (1.02x)
+Big: 249s (1.11x)
+</code></pre><p>As you can see, column and row splits give results within a margin of error. However its clear that its better to divide on more parts than just 4.</p>
+<h2 id="the-easiest">The easiest</h2>
+<p>Easiest optimisation are just compiler flags:</p>
+<pre tabindex="0"><code>-funfolding-use-threshold=16
+-optc-O3
+-optc-ffast-math
+-fspecialise-aggressively
+-fexpose-all-unfoldings
+&#34;-with-rtsopts=-N -s -A64M&#34;
+</code></pre><p>This gives us:</p>
+<pre tabindex="0"><code>Small: 6.61s (1.078x)
+Medium: 55.9s (1.055x)
+Big: 233.9s (1.069x)
+</code></pre><p>Its not much, but its honest work. Especially not having done anything :)</p>
+<h2 id="wizardry">Wizardry</h2>
+<p>In search of further optimisation opportunities I run the program under a profiler to see which functions are the heaviest or hottest. First two lines are not surprising unlike next three. Sure, we are doing a lot of Vec-number multiplications, but why are they not inlining?</p>
+<blockquote>
+<p>Note: &laquo;* and *&raquo; are our operators to multiply 3d vector with a number</p>
+</blockquote>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#66d9ef">COST</span> <span style="color:#66d9ef">CENTRE</span>         <span style="color:#66d9ef">MODULE</span>                    <span style="color:#f92672">%</span>time <span style="color:#f92672">%</span>alloc
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span> <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">16.2</span>   <span style="color:#ae81ff">13.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span>            <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">16.1</span>   <span style="color:#ae81ff">12.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;&lt;*</span>                 <span style="color:#66d9ef">Vec3</span>                      <span style="color:#ae81ff">6.1</span>   <span style="color:#ae81ff">11.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">length_sqr</span>          <span style="color:#66d9ef">Vec3</span>                      <span style="color:#ae81ff">6.0</span>    <span style="color:#ae81ff">5.1</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">*&gt;&gt;</span>                 <span style="color:#66d9ef">Vec3</span>                      <span style="color:#ae81ff">5.2</span>    <span style="color:#ae81ff">5.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_nearest_sph</span>     <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">4.1</span>    <span style="color:#ae81ff">4.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">scatter</span>             <span style="color:#66d9ef">Material</span>                  <span style="color:#ae81ff">4.0</span>    <span style="color:#ae81ff">3.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">randomRS</span>            <span style="color:#66d9ef">MyRandom</span>                  <span style="color:#ae81ff">3.8</span>    <span style="color:#ae81ff">4.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">color_ray</span>           <span style="color:#66d9ef">Main</span>                      <span style="color:#ae81ff">3.7</span>    <span style="color:#ae81ff">3.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_point</span>           <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">3.1</span>    <span style="color:#ae81ff">3.9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span>            <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">3.0</span>    <span style="color:#ae81ff">3.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_normal</span>          <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">3.0</span>    <span style="color:#ae81ff">1.9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">random_vec</span>          <span style="color:#66d9ef">MyRandom</span>                  <span style="color:#ae81ff">2.8</span>    <span style="color:#ae81ff">4.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">+</span>                   <span style="color:#66d9ef">Vec3</span>                      <span style="color:#ae81ff">2.7</span>    <span style="color:#ae81ff">2.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">atPoint</span>             <span style="color:#66d9ef">Ray</span>                       <span style="color:#ae81ff">2.5</span>    <span style="color:#ae81ff">3.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">multi_color</span>         <span style="color:#66d9ef">Main</span>                      <span style="color:#ae81ff">2.2</span>    <span style="color:#ae81ff">2.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">gen_ray</span>             <span style="color:#66d9ef">Main</span>                      <span style="color:#ae81ff">1.9</span>    <span style="color:#ae81ff">2.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">headMay</span>             <span style="color:#66d9ef">Safe</span>                      <span style="color:#ae81ff">1.2</span>    <span style="color:#ae81ff">0.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span>            <span style="color:#66d9ef">Hittable</span>                  <span style="color:#ae81ff">1.1</span>    <span style="color:#ae81ff">0.4</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">reflect</span>             <span style="color:#66d9ef">Material</span>                  <span style="color:#ae81ff">1.0</span>    <span style="color:#ae81ff">1.3</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">blend</span>               <span style="color:#66d9ef">Color</span>                     <span style="color:#ae81ff">0.9</span>    <span style="color:#ae81ff">1.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">&lt;&lt;\</span>                 <span style="color:#66d9ef">Vec3</span>                      <span style="color:#ae81ff">0.9</span>    <span style="color:#ae81ff">1.2</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">nextWord64</span>          <span style="color:#66d9ef">System</span><span style="color:#f92672">.</span><span style="color:#66d9ef">Random</span><span style="color:#f92672">.</span><span style="color:#66d9ef">SplitMix</span>    <span style="color:#ae81ff">0.8</span>    <span style="color:#ae81ff">3.6</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">absorb</span>              <span style="color:#66d9ef">Color</span>                     <span style="color:#ae81ff">0.6</span>    <span style="color:#ae81ff">1.2</span>
+</span></span></code></pre></div><p>Well, lets help the compiler aka do the work for it by inserting <code>INLINE</code> statements on all vector operations:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE (*&gt;&gt;) #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE (&lt;&lt;*) #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE (&lt;&lt;\) #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE dot #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE length_sqr #-}</span>
+</span></span></code></pre></div><p>Results:</p>
+<pre tabindex="0"><code>Small: 4.93s (1.34x)
+Medium: 40.68s (1.37x)
+Big: 173.24s (1.35x)
+</code></pre><p>Wow! This speedup is comparable with going mutltithreading! 5 lines gave ~35%! But wait, there is more. Resulting program can be profiled again:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#66d9ef">COST</span> <span style="color:#66d9ef">CENTRE</span>           <span style="color:#66d9ef">MODULE</span>                 <span style="color:#f92672">%</span>time <span style="color:#f92672">%</span>alloc
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span>              <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">20.5</span>   <span style="color:#ae81ff">15.4</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span>   <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">11.4</span>   <span style="color:#ae81ff">16.6</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">randomRS</span>              <span style="color:#66d9ef">MyRandom</span>               <span style="color:#ae81ff">5.5</span>    <span style="color:#ae81ff">5.2</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_nearest_sph</span>       <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">5.5</span>    <span style="color:#ae81ff">5.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">color_ray</span>             <span style="color:#66d9ef">Main</span>                   <span style="color:#ae81ff">5.1</span>    <span style="color:#ae81ff">4.1</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_normal</span>            <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">4.8</span>    <span style="color:#ae81ff">3.8</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">scatter</span>               <span style="color:#66d9ef">Material</span>               <span style="color:#ae81ff">4.7</span>    <span style="color:#ae81ff">3.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_point</span>             <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">4.4</span>    <span style="color:#ae81ff">5.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span>              <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">3.9</span>    <span style="color:#ae81ff">3.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">random_vec</span>            <span style="color:#66d9ef">MyRandom</span>               <span style="color:#ae81ff">3.8</span>    <span style="color:#ae81ff">4.9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">gen_ray</span>               <span style="color:#66d9ef">Main</span>                   <span style="color:#ae81ff">3.2</span>    <span style="color:#ae81ff">3.1</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">atPoint</span>               <span style="color:#66d9ef">Ray</span>                    <span style="color:#ae81ff">3.1</span>    <span style="color:#ae81ff">4.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">norm</span>                  <span style="color:#66d9ef">Vec3</span>                   <span style="color:#ae81ff">3.1</span>    <span style="color:#ae81ff">6.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">multi_color</span>           <span style="color:#66d9ef">Main</span>                   <span style="color:#ae81ff">3.1</span>    <span style="color:#ae81ff">2.8</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">+</span>                     <span style="color:#66d9ef">Vec3</span>                   <span style="color:#ae81ff">2.4</span>    <span style="color:#ae81ff">1.6</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">headMay</span>               <span style="color:#66d9ef">Safe</span>                   <span style="color:#ae81ff">1.6</span>    <span style="color:#ae81ff">0.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span>              <span style="color:#66d9ef">Hittable</span>               <span style="color:#ae81ff">1.6</span>    <span style="color:#ae81ff">0.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">absorb</span>                <span style="color:#66d9ef">Color</span>                  <span style="color:#ae81ff">1.4</span>    <span style="color:#ae81ff">1.5</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">-</span>                     <span style="color:#66d9ef">Vec3</span>                   <span style="color:#ae81ff">1.2</span>    <span style="color:#ae81ff">0.9</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">reflect</span>               <span style="color:#66d9ef">Material</span>               <span style="color:#ae81ff">1.2</span>    <span style="color:#ae81ff">1.7</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">nextWord64</span>            <span style="color:#66d9ef">System</span><span style="color:#f92672">.</span><span style="color:#66d9ef">Random</span><span style="color:#f92672">.</span><span style="color:#66d9ef">SplitMix</span> <span style="color:#ae81ff">1.2</span>    <span style="color:#ae81ff">4.4</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">random_vec_in_sphereS</span> <span style="color:#66d9ef">MyRandom</span>               <span style="color:#ae81ff">1.1</span>    <span style="color:#ae81ff">0.0</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">blend</span>                 <span style="color:#66d9ef">Color</span>                  <span style="color:#ae81ff">1.0</span>    <span style="color:#ae81ff">1.4</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">liftMay</span>               <span style="color:#66d9ef">Safe</span><span style="color:#f92672">.</span><span style="color:#66d9ef">Util</span>              <span style="color:#ae81ff">0.9</span>    <span style="color:#ae81ff">1.0</span>
+</span></span></code></pre></div><p>You can see here the rest of vector operations, simple ray and color function as well as generating random numbers. Let&rsquo;s enchant them as well:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE randomRS #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE atPoint #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE norm #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE absorb #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE blend #-}</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">{-# INLINE (&lt;++&gt;) #-}</span> <span style="color:#75715e">-- Just for fun</span>
+</span></span></code></pre></div><p>That gives total result of inlining at:</p>
+<pre tabindex="0"><code>Small: 4.53s (1.46x)
+Medium: 38.79s (1.44x)
+Big: 161.6s (1.45x)
+</code></pre><p>That&rsquo;s a little better. Now to firmly at the level of going multithreading. But wait there is more. Doing it once again yields following total results of inlining:</p>
+<pre tabindex="0"><code>Small: 4.46s (1.48x)
+Medium: 36.4s (1.53x)
+Big: 151.2s (1.54x)
+</code></pre><p>That&rsquo;s it mana is depleted. Any more attempts at inlining only gave worse resutls. Despite my expectations, even <code>-</code> and <code>+</code> operations on vectors are faster as they are now, as function calls.</p>
+<h2 id="black-magic">Black magic</h2>
 <div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
 </span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
 </span></span><span style="display:flex;"><span>}
