@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en-us">
-  <head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <head>
     <title>Parallelizing Haskell Raytracer // theblek</title>
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta charset="utf-8" />
@@ -8,20 +8,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="author" content="Kuklin Georgiy" />
     <meta name="description" content="" />
-    <link rel="stylesheet" href="/css/main.min.5b1fcc8902588589c4767187402a3c29f8b8d7a6fdef6d9f8f77045bb0d14fee.css" />
+    <link rel="stylesheet" href="theblek.online/css/main.min.5b1fcc8902588589c4767187402a3c29f8b8d7a6fdef6d9f8f77045bb0d14fee.css" />
     
 
     
     
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Parallelizing Haskell Raytracer">
-  <meta name="twitter:description" content="This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be substantially expanded upon, although I might add new measurements later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
+  <meta name="twitter:description" content="This is just a translation of my article from 2023. Stylistic choices of the original are mostly retained. It will not be substantially expanded upon, but I do feel this article could benefit from better methodology. More on that later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
 Introduction So we made a raytracer in haskell using Raytracing In One Weekend as our guide. As you may know, haskell’s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.">
 
-    <meta property="og:url" content="//localhost:1313/posts/haskell-raytracer/">
+    <meta property="og:url" content="theblek.online/posts/haskell-raytracer/">
   <meta property="og:site_name" content="theblek">
   <meta property="og:title" content="Parallelizing Haskell Raytracer">
-  <meta property="og:description" content="This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be substantially expanded upon, although I might add new measurements later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
+  <meta property="og:description" content="This is just a translation of my article from 2023. Stylistic choices of the original are mostly retained. It will not be substantially expanded upon, but I do feel this article could benefit from better methodology. More on that later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
 Introduction So we made a raytracer in haskell using Raytracing In One Weekend as our guide. As you may know, haskell’s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.">
   <meta property="og:locale" content="en_us">
   <meta property="og:type" content="article">
@@ -33,7 +33,7 @@ Introduction So we made a raytracer in haskell using Raytracing In One Weekend a
   </head>
   <body>
     <header class="app-header">
-      <a href="/"><img class="app-header-avatar" src="/myavatar.jpg" alt="Kuklin Georgiy" /></a>
+      <a href="/theblek.online/"><img class="app-header-avatar" src="/theblek.online/myavatar.jpg" alt="Kuklin Georgiy" /></a>
       <span class="app-header-title">theblek</span>
       <p>Software engineer interested in the nitty-gritty of computing</p>
       <div class="app-header-social">
@@ -44,6 +44,10 @@ Introduction So we made a raytracer in haskell using Raytracing In One Weekend a
         
           <a href="https://t.me/theblek_games" target="_blank" rel="noreferrer noopener me">
             <svg class="icon icon-brand-telegram" viewBox="0 0 24 24" fill="currentColor"><title>Telegram</title><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          </a>
+        
+          <a href="mailto:theblekbern@gmail.com" target="_blank" rel="noreferrer noopener me">
+            <svg class="icon icon-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>mail</title><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
           </a>
         
       </div>
@@ -60,20 +64,19 @@ Introduction So we made a raytracer in haskell using Raytracing In One Weekend a
         </div>
         <div>
           <svg class="icon icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><title>clock</title><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-          8 min read
+          12 min read
         </div>
       </div>
     </header>
     <div class="post-content">
       <blockquote>
-<p>This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be
-substantially expanded upon, although I might add new measurements later. You
-can read original in russian here: <a href="https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e">https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e</a>.</p>
+<p>This is just a translation of my article from 2023. Stylistic choices of the original are mostly retained. It will not be substantially expanded upon, but I do feel this article could benefit from better methodology. More on that later. You can read original in russian here: <a href="https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e">https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e</a>.</p>
 </blockquote>
 <h1 id="introduction">Introduction</h1>
 <p>So we made a raytracer in haskell using <a href="https://raytracing.github.com">Raytracing In One Weekend</a> as our guide.
 As you may know, haskell&rsquo;s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.</p>
 <p>While measuring performance benefit of parallelizing I also became interested in how fast it can go. Hence a second part about optimisations.</p>
+<p>All of the code is available at <a href="https://github.com/TheBlek/haskell-raytracer">https://github.com/TheBlek/haskell-raytracer</a></p>
 <h1 id="baseline-measurements">Baseline measurements</h1>
 <p>For all measurements I&rsquo;m going to use three configurations:</p>
 <pre tabindex="0"><code>Small: 11.33s (Avg 3)
@@ -278,11 +281,123 @@ Medium: 36.4s (1.53x)
 Big: 151.2s (1.54x)
 </code></pre><p>That&rsquo;s it mana is depleted. Any more attempts at inlining only gave worse resutls. Despite my expectations, even <code>-</code> and <code>+</code> operations on vectors are faster as they are now, as function calls.</p>
 <h2 id="black-magic">Black magic</h2>
-<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">int</span> <span style="color:#a6e22e">main</span>() {
-</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#ae81ff">0</span>;
-</span></span><span style="display:flex;"><span>}
-</span></span></code></pre></div><h2 id="another-point">Another point</h2>
-<p><a href="https://google.com">link</a></p>
+<p>As you could have noticed, during all those optimisations the actual code did not change a bit. Well. Its time to test its effectiveness.</p>
+<p>First thing that jumped out to me was <code>sphere_intersection</code> and the amount of memory it was allocating. 20% of all allocaitons!</p>
+<pre tabindex="0"><code>COST CENTRE           MODULE                 %time %alloc
+
+hit_dist              Hittable               23.6   18.1
+sphere_intersection   Hittable               14.6   19.4
+color_ray             Main                   7.7    7.6
+</code></pre><p>Here&rsquo;s the actual code:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span> ray (tmin, tmax) <span style="color:#f92672">=</span> headMay 
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">.</span> filter (<span style="color:#f92672">&gt;=</span>tmin) <span style="color:#f92672">.</span> filter (<span style="color:#f92672">&lt;=</span>tmax)
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;=&lt;</span> sphere_intersection ray
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span> <span style="color:#f92672">::</span> <span style="color:#66d9ef">Ray</span> <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Sphere</span> <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Maybe</span> [<span style="color:#66d9ef">Double</span>]
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span> (<span style="color:#66d9ef">Ry</span> origin dir) (<span style="color:#66d9ef">Sph</span> center r <span style="color:#66d9ef">_</span> ) <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> discriminant <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">Just</span> [
+</span></span><span style="display:flex;"><span>            (<span style="color:#f92672">-</span>b_half <span style="color:#f92672">-</span> sqrt discriminant) <span style="color:#f92672">/</span> a,
+</span></span><span style="display:flex;"><span>            (<span style="color:#f92672">-</span>b_half <span style="color:#f92672">+</span> sqrt discriminant) <span style="color:#f92672">/</span> a
+</span></span><span style="display:flex;"><span>        ]
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">Nothing</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">where</span> <span style="color:#f92672">...</span>
+</span></span></code></pre></div><p>It was decided to:</p>
+<ol>
+<li>Get rid of the list return type. We do know the exact amount of return values.</li>
+<li>Rewrite <code>hit_dist</code>, function that uses <code>sphere_intersection</code> in a more imperative style.</li>
+</ol>
+<p>Firstly, change parenthesis and return type:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span> <span style="color:#f92672">::</span> <span style="color:#66d9ef">Ray</span> <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Sphere</span> <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Maybe</span> (<span style="color:#66d9ef">Double</span>, <span style="color:#66d9ef">Double</span>)
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">sphere_intersection</span> (<span style="color:#66d9ef">Ry</span> origin dir) (<span style="color:#66d9ef">Sph</span> center r <span style="color:#66d9ef">_</span> ) <span style="color:#f92672">=</span> 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> discriminant <span style="color:#f92672">&gt;=</span> <span style="color:#ae81ff">0</span> <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">Just</span> (
+</span></span><span style="display:flex;"><span>            (<span style="color:#f92672">-</span>b_half <span style="color:#f92672">-</span> sqrt discriminant) <span style="color:#f92672">/</span> a,
+</span></span><span style="display:flex;"><span>            (<span style="color:#f92672">-</span>b_half <span style="color:#f92672">+</span> sqrt discriminant) <span style="color:#f92672">/</span> a
+</span></span><span style="display:flex;"><span>        ) 
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">Nothing</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">where</span>
+</span></span></code></pre></div><p>And then imperatively filter two values:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#a6e22e">hit_dist</span> ray (tmin, tmax) sph <span style="color:#f92672">=</span> sphere_intersection ray sph <span style="color:#f92672">&gt;&gt;=</span>
+</span></span><span style="display:flex;"><span>        (<span style="color:#a6e22e">\</span>(x0, x1) <span style="color:#f92672">-&gt;</span>  <span style="color:#66d9ef">if</span> x0 <span style="color:#f92672">&lt;</span> tmin <span style="color:#f92672">||</span> x0 <span style="color:#f92672">&gt;</span> tmax <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>                            <span style="color:#66d9ef">if</span> x1 <span style="color:#f92672">&gt;</span> tmax <span style="color:#f92672">||</span> x1 <span style="color:#f92672">&lt;</span> tmin <span style="color:#66d9ef">then</span>
+</span></span><span style="display:flex;"><span>                                <span style="color:#66d9ef">Nothing</span>
+</span></span><span style="display:flex;"><span>                            <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>                                <span style="color:#66d9ef">Just</span> x1
+</span></span><span style="display:flex;"><span>                       <span style="color:#66d9ef">else</span>
+</span></span><span style="display:flex;"><span>                            <span style="color:#66d9ef">Just</span> x0
+</span></span><span style="display:flex;"><span>        )
+</span></span></code></pre></div><p>Results:</p>
+<pre tabindex="0"><code>Small: 3.67s (1.21x)
+Medium: 30.65s (1.19x)
+Big: 128.29s (1.18x)
+</code></pre><p>And it keeps on giving. Okay, lets keep working on it then. Running under profiler again and reasoning about results:</p>
+<pre tabindex="0"><code>COST CENTRE           MODULE                 %time %alloc
+
+hit_dist              Hittable               17.4    1.4
+sphere_intersection   Hittable               13.0   20.1
+color_ray             Main                   9.7    9.5
+</code></pre><p>Hmm&hellip; At least, hit_dist memory consumption decreased. Maybe its possible to optimise it further. However, I&rsquo;m out of ideas here.</p>
+<p>So I decided to turn my attention to <code>hit_data</code> - function that collects a complete information structure about possible hit from ray intersecting an object: point, normal, material. Here it is:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span> <span style="color:#f92672">::</span> <span style="color:#66d9ef">Ray</span> <span style="color:#f92672">-&gt;</span> (<span style="color:#66d9ef">Double</span>, <span style="color:#66d9ef">Double</span>) <span style="color:#f92672">-&gt;</span> a <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Maybe</span> <span style="color:#66d9ef">HitData</span>
+</span></span><span style="display:flex;"><span>    hit_data ray bounds obj <span style="color:#f92672">=</span> (,,)
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;$&gt;</span> hit_point ray bounds obj
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;*&gt;</span> hit_normal ray bounds obj
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;*&gt;</span> hit_material ray bounds obj
+</span></span></code></pre></div><p>This is an automatically generated function i.e. we need to specify <code>hit_point</code>, <code>hit_normal</code>, <code>hit_material</code> and woosh - we can use <code>hit_data</code>. There are a couple of things that bother me about it:</p>
+<ol>
+<li>For each of the functions we probably need to calculate a ray-object intersection. It could be cached by Haskell since its a pure function, but who knows. And, well, going to cache multiple times is still slower than not doing that at all.</li>
+<li>Each of the applicative functors must check whether the value is Nothing or not. But we know, that if there is a point, there must be a normal and a material.</li>
+</ol>
+<p>Solving problem №2 I rewrote hit_data with a more imperative style:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span> ray bounds obj <span style="color:#f92672">=</span>  <span style="color:#66d9ef">case</span> hit_point ray bounds obj <span style="color:#66d9ef">of</span>
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">Nothing</span> <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Nothing</span>
+</span></span><span style="display:flex;"><span>        (<span style="color:#66d9ef">Just</span> point) <span style="color:#f92672">-&gt;</span> <span style="color:#66d9ef">Just</span> (point, normal, material)
+</span></span><span style="display:flex;"><span>					<span style="color:#66d9ef">where</span> normal <span style="color:#f92672">=</span> fromJust <span style="color:#f92672">$</span> hit_normal ray bounds obj
+</span></span><span style="display:flex;"><span>								 material <span style="color:#f92672">=</span> fromJust <span style="color:#f92672">$</span> hit_material ray bounds obj
+</span></span></code></pre></div><p>That didn&rsquo;t help much:</p>
+<pre tabindex="0"><code>Small: 3.64s (1x)
+Medium: 29.16s (1.05x)
+Big: 126.3s (1.015x)
+</code></pre><p>Solving problem №1 I decided to specialize the function for each object. In our case its just spheres and arrays of spheres:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-haskell" data-lang="haskell"><span style="display:flex;"><span><span style="color:#75715e">-- Sphere</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span> ray bounds sphere <span style="color:#f92672">=</span> hit_dist ray bounds sphere
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">&lt;&amp;&gt;</span> (<span style="color:#a6e22e">\</span>dist <span style="color:#f92672">-&gt;</span> (point dist, normal (outward_normal dist), material sphere))
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">where</span> point <span style="color:#f92672">=</span> atPoint ray
+</span></span><span style="display:flex;"><span>              outward_normal dist <span style="color:#f92672">=</span> norm <span style="color:#f92672">$</span> point dist <span style="color:#f92672">-</span> center sphere
+</span></span><span style="display:flex;"><span>              normal outw <span style="color:#f92672">=</span> (negate <span style="color:#f92672">.</span> signum <span style="color:#f92672">.</span> dot (dir ray) <span style="color:#f92672">$</span> outw) <span style="color:#f92672">*&gt;&gt;</span> outw
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e">-- (Hittable a) =&gt; Hittable [a]</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">hit_data</span> ray bounds obj <span style="color:#f92672">=</span> hit_data ray bounds <span style="color:#f92672">&lt;=&lt;</span> snd
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">$</span> hit_nearest_sph ray bounds obj
+</span></span></code></pre></div><p>And that did something!</p>
+<pre tabindex="0"><code>Small: 2.68s (1.37x)
+Medium: 21.85s (1.40x)
+Big: 90.95s (1.41x)
+</code></pre><p>Astounding results. It once again is comparable with going multithreaded on two cores.</p>
+<h1 id="are-ya-winning-son">Are ya winning son?</h1>
+<p>Lets summarize all results achieved with blood and sweat:</p>
+<ol>
+<li>Proper multithreading (4 threads) - 1.62x</li>
+<li>Compilation flags - 1.05x</li>
+<li>Dumb inlining - 1.53x</li>
+<li>Algorithm fixes - 1.68x</li>
+</ol>
+<p>Total speedup - 4.37x
+For each configuration:</p>
+<pre tabindex="0"><code>Small: 4.22x
+Medium: 4.32x
+Big: 4.5x
+</code></pre><p>Needless to say, there are still ways to improve performance of our raytracer. We could experiment with strictness, arrays and other datastructures. However, speedups won&rsquo;t be on the same scale.</p>
+<h1 id="afterword-from-2025">Afterword from 2025</h1>
+<p>It was fun to look back at this. But with my since acquired experience it looks like child&rsquo;s play. Doing it over again I would change some things:</p>
+<ol>
+<li>Better performance metrics. For optimisation it is very important to get quality information. I would probably setup some reproducible benchmark suite that could be run with one command. It would do a number of measurements and then display stats: avg, median, dispersion. And I would run a the benchmark on a couple machines before making conclusions. As it is done now, even the exact settings for configurations are lost.</li>
+<li>I would not play with inlining. Performance benefit from heavy inlining probably were a hardware peculialiry as my friend&rsquo;s machine did not experience them as much as mine. Maybe this is a result of a slow memory subsystem? Or a bad prefetcher? Either way, I would be much more careful with inlining.</li>
+</ol>
+<p>And yeah, heavy speedups are still possible. At least, there are various tree-ish data structures for traversing collections of objects.</p>
 
     </div>
     <div class="post-footer">
@@ -291,5 +406,8 @@ Big: 151.2s (1.54x)
   </article>
 
     </main>
+
+    
+    <script async src="https://scripts.simpleanalyticscdn.com/latest.js"></script>
   </body>
 </html>

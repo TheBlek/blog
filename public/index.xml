@@ -6,7 +6,14 @@
     <description>Recent content on theblek</description>
     <generator>Hugo</generator>
     <language>en-us</language>
-    <lastBuildDate></lastBuildDate>
+    <lastBuildDate>Thu, 19 Jun 2025 18:27:50 +0300</lastBuildDate>
     <atom:link href="theblek.online/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Parallelizing Haskell Raytracer</title>
+      <link>theblek.online/posts/haskell-raytracer/</link>
+      <pubDate>Thu, 19 Jun 2025 18:27:50 +0300</pubDate>
+      <guid>theblek.online/posts/haskell-raytracer/</guid>
+      <description>&lt;blockquote&gt;&#xA;&lt;p&gt;This is just a translation of my article from 2023. Stylistic choices of the original are mostly retained. It will not be substantially expanded upon, but I do feel this article could benefit from better methodology. More on that later. You can read original in russian here: &lt;a href=&#34;https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e&#34;&gt;https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e&lt;/a&gt;.&lt;/p&gt;&#xA;&lt;/blockquote&gt;&#xA;&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;&#xA;&lt;p&gt;So we made a raytracer in haskell using &lt;a href=&#34;https://raytracing.github.com&#34;&gt;Raytracing In One Weekend&lt;/a&gt; as our guide.&#xA;As you may know, haskell&amp;rsquo;s biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share.&lt;/p&gt;</description>
+    </item>
   </channel>
 </rss>

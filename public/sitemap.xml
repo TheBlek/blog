@@ -2,6 +2,9 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>theblek.online/posts/haskell-raytracer/</loc>
+    <lastmod>2025-06-19T18:27:50+03:00</lastmod>
+  </url><url>
     <loc>theblek.online/posts/</loc>
     <lastmod>2025-06-19T18:27:50+03:00</lastmod>
   </url><url>

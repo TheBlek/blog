@@ -15,4 +15,8 @@ theme = 'hugo-theme-m10c'
 		icon = "brand-telegram"
 		name = "Telegram"
 		url = "https://t.me/theblek_games"
+	[[params.social]]
+		icon = "mail"
+		name = "Email"
+		url = "mailto:theblekbern@gmail.com"
 	

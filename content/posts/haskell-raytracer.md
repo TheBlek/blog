@@ -1,12 +1,10 @@
 +++
 date = '2025-06-19T18:27:50+03:00'
-draft = true
+draft = false
 title = 'Parallelizing Haskell Raytracer'
 +++
 
-> This is just a translation of my previous article from 2023. While I tried to save style from the orignal, most of it It will not be
-substantially expanded upon, although I might add new measurements later. You 
-can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
+> This is just a translation of my article from 2023. Stylistic choices of the original are mostly retained. It will not be substantially expanded upon, but I do feel this article could benefit from better methodology. More on that later. You can read original in russian here: https://luxurious-yearde9.notion.site/Parallel-Haskell-raytracer-63132332960f488aaa04b7cc01e13f8e.
 
 # Introduction
 
@@ -14,6 +12,8 @@ So we made a raytracer in haskell using [Raytracing In One Weekend](https://rayt
 As you may know, haskell's biggest feature is mathematically correct functions. Meaning the result of the evaluation can be determined solely from the arugments. So no more global or hidden state. This computing models lends itself great to parrallel execution. However there were a few unexpected pitfalls that I want to share. 
 
 While measuring performance benefit of parallelizing I also became interested in how fast it can go. Hence a second part about optimisations.
+
+All of the code is available at https://github.com/TheBlek/haskell-raytracer
 
 # Baseline measurements
 For all measurements I'm going to use three configurations:
@@ -321,12 +321,157 @@ That's it mana is depleted. Any more attempts at inlining only gave worse resutl
 
 ## Black magic
 
-```c
-int main() {
-    return 0;
-}
+As you could have noticed, during all those optimisations the actual code did not change a bit. Well. Its time to test its effectiveness.
+
+First thing that jumped out to me was `sphere_intersection` and the amount of memory it was allocating. 20% of all allocaitons!
+```
+COST CENTRE           MODULE                 %time %alloc
+
+hit_dist              Hittable               23.6   18.1
+sphere_intersection   Hittable               14.6   19.4
+color_ray             Main                   7.7    7.6
 ```
 
-## Another point
+Here's the actual code:
+```haskell
+hit_dist ray (tmin, tmax) = headMay 
+        . filter (>=tmin) . filter (<=tmax)
+        <=< sphere_intersection ray
 
-[link](https://google.com)
+sphere_intersection :: Ray -> Sphere -> Maybe [Double]
+sphere_intersection (Ry origin dir) (Sph center r _ ) = 
+    if discriminant >= 0 then
+        Just [
+            (-b_half - sqrt discriminant) / a,
+            (-b_half + sqrt discriminant) / a
+        ]
+    else
+        Nothing
+    where ...
+```
+
+It was decided to:
+1. Get rid of the list return type. We do know the exact amount of return values.
+2. Rewrite `hit_dist`, function that uses `sphere_intersection` in a more imperative style. 
+
+Firstly, change parenthesis and return type:
+```haskell
+sphere_intersection :: Ray -> Sphere -> Maybe (Double, Double)
+sphere_intersection (Ry origin dir) (Sph center r _ ) = 
+    if discriminant >= 0 then
+        Just (
+            (-b_half - sqrt discriminant) / a,
+            (-b_half + sqrt discriminant) / a
+        ) 
+    else
+        Nothing
+    where
+```
+
+And then imperatively filter two values:
+```haskell
+hit_dist ray (tmin, tmax) sph = sphere_intersection ray sph >>=
+        (\(x0, x1) ->  if x0 < tmin || x0 > tmax then
+                            if x1 > tmax || x1 < tmin then
+                                Nothing
+                            else
+                                Just x1
+                       else
+                            Just x0
+        )
+```
+
+Results:
+```
+Small: 3.67s (1.21x)
+Medium: 30.65s (1.19x)
+Big: 128.29s (1.18x)
+```
+
+And it keeps on giving. Okay, lets keep working on it then. Running under profiler again and reasoning about results:
+```
+COST CENTRE           MODULE                 %time %alloc
+
+hit_dist              Hittable               17.4    1.4
+sphere_intersection   Hittable               13.0   20.1
+color_ray             Main                   9.7    9.5
+```
+
+Hmm... At least, hit_dist memory consumption decreased. Maybe its possible to optimise it further. However, I'm out of ideas here.
+
+So I decided to turn my attention to `hit_data` - function that collects a complete information structure about possible hit from ray intersecting an object: point, normal, material. Here it is:
+```haskell
+hit_data :: Ray -> (Double, Double) -> a -> Maybe HitData
+    hit_data ray bounds obj = (,,)
+        <$> hit_point ray bounds obj
+        <*> hit_normal ray bounds obj
+        <*> hit_material ray bounds obj
+```
+
+This is an automatically generated function i.e. we need to specify `hit_point`, `hit_normal`, `hit_material` and woosh - we can use `hit_data`. There are a couple of things that bother me about it:
+1. For each of the functions we probably need to calculate a ray-object intersection. It could be cached by Haskell since its a pure function, but who knows. And, well, going to cache multiple times is still slower than not doing that at all.
+2. Each of the applicative functors must check whether the value is Nothing or not. But we know, that if there is a point, there must be a normal and a material.
+
+Solving problem №2 I rewrote hit_data with a more imperative style:
+```haskell
+hit_data ray bounds obj =  case hit_point ray bounds obj of
+        Nothing -> Nothing
+        (Just point) -> Just (point, normal, material)
+					where normal = fromJust $ hit_normal ray bounds obj
+								 material = fromJust $ hit_material ray bounds obj
+```
+
+That didn't help much:
+```
+Small: 3.64s (1x)
+Medium: 29.16s (1.05x)
+Big: 126.3s (1.015x)
+```
+
+Solving problem №1 I decided to specialize the function for each object. In our case its just spheres and arrays of spheres:
+```haskell
+-- Sphere
+hit_data ray bounds sphere = hit_dist ray bounds sphere
+        <&> (\dist -> (point dist, normal (outward_normal dist), material sphere))
+        where point = atPoint ray
+              outward_normal dist = norm $ point dist - center sphere
+              normal outw = (negate . signum . dot (dir ray) $ outw) *>> outw
+
+-- (Hittable a) => Hittable [a]
+hit_data ray bounds obj = hit_data ray bounds <=< snd
+        $ hit_nearest_sph ray bounds obj
+```
+
+And that did something!
+```
+Small: 2.68s (1.37x)
+Medium: 21.85s (1.40x)
+Big: 90.95s (1.41x)
+```
+Astounding results. It once again is comparable with going multithreaded on two cores.
+
+# Are ya winning son?
+
+Lets summarize all results achieved with blood and sweat:
+1. Proper multithreading (4 threads) - 1.62x
+2. Compilation flags - 1.05x
+3. Dumb inlining - 1.53x
+4. Algorithm fixes - 1.68x
+
+Total speedup - 4.37x
+For each configuration:
+```
+Small: 4.22x
+Medium: 4.32x
+Big: 4.5x
+```
+
+Needless to say, there are still ways to improve performance of our raytracer. We could experiment with strictness, arrays and other datastructures. However, speedups won't be on the same scale.
+
+# Afterword from 2025
+
+It was fun to look back at this. But with my since acquired experience it looks like child's play. Doing it over again I would change some things:
+1. Better performance metrics. For optimisation it is very important to get quality information. I would probably setup some reproducible benchmark suite that could be run with one command. It would do a number of measurements and then display stats: avg, median, dispersion. And I would run a the benchmark on a couple machines before making conclusions. As it is done now, even the exact settings for configurations are lost.
+2. I would not play with inlining. Performance benefit from heavy inlining probably were a hardware peculialiry as my friend's machine did not experience them as much as mine. Maybe this is a result of a slow memory subsystem? Or a bad prefetcher? Either way, I would be much more careful with inlining.
+
+And yeah, heavy speedups are still possible. At least, there are various tree-ish data structures for traversing collections of objects.
