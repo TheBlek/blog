@@ -1,0 +1,40 @@
+name: Build and Deploy Hugo Blog
+
+on:
+  push:
+    branches:
+      - main  # Trigger the action on pushes to the main branch
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Hugo
+      uses: peaceiris/actions-hugo@v2
+      with:
+        hugo-version: '0.147.8'  # Specify the Hugo version (adjust as needed)
+
+    - name: Build Hugo site
+      run: hugo --minify  # Builds the site with minification for optimized performance
+
+    - name: Copy SSH private key to the action runner
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+    - name: Set up SSH known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to VPS via SSH
+      run: |
+        rsync -avz --delete public/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/theblek.online/
+      env:
+        VPS_USER: ${{ secrets.VPS_USER }}
+        VPS_HOST: ${{ secrets.VPS_HOST }}
