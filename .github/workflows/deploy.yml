@@ -3,7 +3,7 @@ name: Build and Deploy Hugo Blog
 on:
   push:
     branches:
-      - main  # Trigger the action on pushes to the main branch
+      - master  # Trigger the action on pushes to the main branch
 
 jobs:
   build_and_deploy:
