@@ -32,6 +32,8 @@ jobs:
         mkdir -p ~/.ssh
         ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
+    - name: Install rsync
+      run: sudo apt-get update && sudo apt-get install -y rsync
     - name: Deploy to VPS via SSH
       run: |
         rsync -avz --delete public/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/theblek.online/
