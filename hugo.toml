@@ -1,6 +1,6 @@
 baseURL = 'https://theblek.online'
 languageCode = 'en-us'
-title = 'test'
+title = 'theblek'
 theme = 'hugo-theme-m10c'
 
 [params]
