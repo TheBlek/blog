@@ -5,7 +5,7 @@ title = 'Actually Profiling WebGPU in Chrome With Vendor Profilers on Windows'
 +++
 
 # Context
-Profiling WebGPU workload in Chrome is historically not that easy. There are ways to capture frames with PIX and RenderDoc (see Toji's blog: [PIX](https://toji.dev/webgpu-profiling/pix.html) [RenderDoc](https://toji.dev/webgpu-profiling/renderdoc). Those are great tools, but sometimes you need just a little more information that a hardware vendor profiler would have provided. And there *was* a way to use those developed by [François](https://frguthmann.github.io/posts/profiling_webgpu/) and involving a shimmed `d3d12.dll` to force a present event. [His blog post](https://frguthmann.github.io/posts/shimming_d3d12/) explains all the details if you're interested. Regrettably, on March 11 17:43:48 2025 this hack stopped working. Why would it happen on that time, you ask? Because that's when [this commit](https://dawn.googlesource.com/dawn/+/cf3899ffab5d4e2e015c56e72bb48fa0209559fe%5E%21) was created. It forced loading libraries from system32 to avoid DLL search path attacks. Oh well, it was a hacky solution and those tend to break over time.
+Profiling WebGPU workload in Chrome is historically not that easy. There are ways to capture frames with PIX and RenderDoc (see Toji's blog: [PIX](https://toji.dev/webgpu-profiling/pix.html) [RenderDoc](https://toji.dev/webgpu-profiling/renderdoc). Those are great tools, but sometimes you need just a little more information that a hardware vendor profiler would have provided. And there *was* a way to use those, developed by [François](https://frguthmann.github.io/posts/profiling_webgpu/) and involving a shimmed `d3d12.dll` to force a present event. [His blog post](https://frguthmann.github.io/posts/shimming_d3d12/) explains all the details if you're interested. Regrettably, on March 11 17:43:48 2025 this hack stopped working. Why would it happen on that time, you ask? Because that's when [this commit](https://dawn.googlesource.com/dawn/+/cf3899ffab5d4e2e015c56e72bb48fa0209559fe%5E%21) was created. It forced loading libraries from system32 to avoid DLL search path attacks. Oh well, it was a hacky solution and those tend to break over time.
 
 And what a better way to fix a broken hack than adding another hack on top of that? I managed to reliably launch Chrome through another .exe to hijack its library load order and make it see the shiny shimmed `d3d12.dll` lying nearby. Thus allowing us to use vendor profilers once again.
 
@@ -150,7 +150,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD reason, LPVOID lpReserved)
 }
 ```
 
-Does that work? Almost. We also need to remember that Chrome launches a lot of processes, one of which handles the GPU - exactly the one loading `d3d12.dll`. So to hijack `LoadLibrary(Ex)W` calls there we need to infect other processes with our DLL :)
+Does that work? Almost. We also need to remember that Chrome launches a lot of processes, one of which handles the GPU - exactly the one loading `d3d12.dll`. So to hijack `LoadLibrary(Ex)W` calls there we need to start spreading our DLL by injecting it into every created gpu process:
 
 ```cpp
 static std::string GetSelfPath()
